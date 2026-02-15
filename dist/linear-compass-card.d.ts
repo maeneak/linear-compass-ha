@@ -13,11 +13,11 @@ export declare class LinearCompassCard extends LitElement {
     static styles: import("lit").CSSResult;
     hass: HomeAssistant;
     private _config;
-    private _canvas;
     private _heading;
     private _animatedHeading;
     private _animFrame;
     private _resizeObserver?;
+    private _initialized;
     static getConfigElement(): import("./editor").LinearCompassCardEditor;
     static getStubConfig(): {
         entity: string;
@@ -36,6 +36,7 @@ export declare class LinearCompassCard extends LitElement {
     };
     connectedCallback(): void;
     disconnectedCallback(): void;
+    protected firstUpdated(_changed: PropertyValues): void;
     protected updated(changed: PropertyValues): void;
     protected render(): typeof nothing | import("lit-html").TemplateResult<1>;
     private _startAnimation;

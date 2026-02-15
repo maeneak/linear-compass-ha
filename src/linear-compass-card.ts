@@ -1,5 +1,5 @@
 import { LitElement, html, nothing, PropertyValues } from "lit";
-import { customElement, property, state, query } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import { compassStyles } from "./styles";
 import { LinearCompassCardConfig, DEFAULT_CONFIG } from "./types";
 import { CARDINALS, bearingToCardinal, normaliseDeg } from "./utils";
@@ -15,9 +15,6 @@ interface HassEntity {
   attributes: Record<string, unknown>;
 }
 
-const PIXELS_PER_DEGREE = 4; // density of the strip
-const TOTAL_STRIP = 360 * PIXELS_PER_DEGREE; // one full revolution in px
-
 // Register card info
 (window as any).customCards = (window as any).customCards || [];
 (window as any).customCards.push({
@@ -25,7 +22,7 @@ const TOTAL_STRIP = 360 * PIXELS_PER_DEGREE; // one full revolution in px
   name: "Linear Compass Card",
   description: "A horizontal linear compass gauge for Home Assistant",
   preview: true,
-  documentationURL: "https://github.com/your-repo/linear-compass-card",
+  documentationURL: "https://github.com/maeneak/linear-compass-ha",
 });
 
 @customElement("linear-compass-card")
@@ -34,12 +31,12 @@ export class LinearCompassCard extends LitElement {
 
   @property({ attribute: false }) public hass!: HomeAssistant;
   @state() private _config!: LinearCompassCardConfig;
-  @query("canvas.compass-canvas") private _canvas!: HTMLCanvasElement;
 
   private _heading = 0;
   private _animatedHeading = 0;
   private _animFrame = 0;
   private _resizeObserver?: ResizeObserver;
+  private _initialized = false;
 
   // ---- HA card interface ----
 
@@ -78,31 +75,39 @@ export class LinearCompassCard extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
     this._resizeObserver = new ResizeObserver(() => this._draw());
-    // observe after first render
-    this.updateComplete.then(() => {
-      const container = this.renderRoot.querySelector(".compass-container");
-      if (container) this._resizeObserver!.observe(container);
-    });
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
     cancelAnimationFrame(this._animFrame);
     this._resizeObserver?.disconnect();
+    this._initialized = false;
+  }
+
+  protected firstUpdated(_changed: PropertyValues): void {
+    super.firstUpdated(_changed);
+    const container = this.renderRoot.querySelector(".compass-container");
+    if (container) this._resizeObserver!.observe(container);
+    this._initialized = true;
+    // Initial draw after DOM is ready
+    this._startAnimation();
   }
 
   protected updated(changed: PropertyValues): void {
     super.updated(changed);
-    if (!this._config || !this.hass) return;
+    if (!this._config || !this.hass || !this._initialized) return;
 
     const entity = this.hass.states[this._config.entity];
     if (entity) {
       const raw = parseFloat(entity.state);
       if (!isNaN(raw)) {
-        this._heading = normaliseDeg(raw);
+        const newHeading = normaliseDeg(raw);
+        if (newHeading !== this._heading) {
+          this._heading = newHeading;
+          this._startAnimation();
+        }
       }
     }
-    this._startAnimation();
   }
 
   // ---- rendering ----
@@ -180,13 +185,17 @@ export class LinearCompassCard extends LitElement {
   // ---- canvas drawing ----
 
   private _draw(): void {
-    const canvas = this._canvas;
+    const canvas = this.renderRoot.querySelector(
+      "canvas.compass-canvas"
+    ) as HTMLCanvasElement | null;
     if (!canvas) return;
 
     const container = canvas.parentElement;
     if (!container) return;
 
     const rect = container.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
     const dpr = window.devicePixelRatio || 1;
     const w = rect.width;
     const h = rect.height;
