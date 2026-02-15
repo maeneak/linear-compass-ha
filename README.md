@@ -8,6 +8,7 @@ A horizontal linear compass gauge custom card for Home Assistant. Displays headi
 
 - **Linear horizontal compass** with smooth animated scrolling
 - **Canvas-rendered** for crisp display at any DPI
+- Accepts numeric headings (`0-360`) or cardinal text (`N`, `NNE`, `SW`, etc.)
 - Cardinal directions (N, NE, E, SE, S, SW, W, NW)
 - Degree markings every 20°, tick marks every 5°/10°
 - **Condensed mode** — fits a single grid row in HA dashboard
@@ -35,7 +36,8 @@ A horizontal linear compass gauge custom card for Home Assistant. Displays headi
 
 | Option             | Type    | Default                    | Description                          |
 |--------------------|---------|----------------------------|--------------------------------------|
-| `entity`           | string  | **required**               | Entity with numeric heading (0–360)  |
+| `entity`           | string  | **required**               | Entity with heading value (numeric or cardinal text) |
+| `attribute`        | string  | —                          | Optional attribute to read heading from |
 | `name`             | string  | —                          | Card title                           |
 | `show_name`        | boolean | `false`                    | Show the card name                   |
 | `show_degrees`     | boolean | `true`                     | Show degree readout below gauge      |
@@ -53,11 +55,14 @@ A horizontal linear compass gauge custom card for Home Assistant. Displays headi
 ```yaml
 type: custom:linear-compass-card
 entity: sensor.wind_bearing
+attribute: heading
 name: Wind Direction
 show_name: true
 show_degrees: true
 condensed: false
 ```
+
+If `attribute` is not set, the card reads `entity.state` first, then falls back to common heading attributes (`bearing`, `heading`, `wind_bearing`, `wind_direction`, `azimuth`, `direction`).
 
 ### Condensed single-row mode
 

@@ -2,7 +2,7 @@ import { LitElement, html, nothing, PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { compassStyles } from "./styles";
 import { LinearCompassCardConfig, DEFAULT_CONFIG } from "./types";
-import { CARDINALS, bearingToCardinal, normaliseDeg } from "./utils";
+import { CARDINALS, bearingToCardinal, normaliseDeg, resolveHeadingFromEntity } from "./utils";
 import "./editor";
 
 // ---- HA type stubs ----
@@ -89,24 +89,23 @@ export class LinearCompassCard extends LitElement {
     const container = this.renderRoot.querySelector(".compass-container");
     if (container) this._resizeObserver!.observe(container);
     this._initialized = true;
-    // Initial draw after DOM is ready
-    this._startAnimation();
+
+    const initialHeading = this._readHeading();
+    if (initialHeading !== null) {
+      this._heading = initialHeading;
+      this._animatedHeading = initialHeading;
+    }
+    this._draw();
   }
 
-  protected updated(changed: PropertyValues): void {
-    super.updated(changed);
+  protected updated(_changed: PropertyValues): void {
+    super.updated(_changed);
     if (!this._config || !this.hass || !this._initialized) return;
 
-    const entity = this.hass.states[this._config.entity];
-    if (entity) {
-      const raw = parseFloat(entity.state);
-      if (!isNaN(raw)) {
-        const newHeading = normaliseDeg(raw);
-        if (newHeading !== this._heading) {
-          this._heading = newHeading;
-          this._startAnimation();
-        }
-      }
+    const newHeading = this._readHeading();
+    if (newHeading !== null && newHeading !== this._heading) {
+      this._heading = newHeading;
+      this._startAnimation();
     }
   }
 
@@ -131,10 +130,11 @@ export class LinearCompassCard extends LitElement {
       --compass-degree: ${this._config.degree_color};
     `;
 
-    const entity = this.hass?.states[this._config.entity];
-    const heading = entity ? parseFloat(entity.state) : 0;
-    const cardinal = bearingToCardinal(isNaN(heading) ? 0 : heading);
-    const degStr = isNaN(heading) ? "---" : `${Math.round(normaliseDeg(heading))}`;
+    const heading = this._readHeading();
+    const cardinal = heading === null ? "---" : bearingToCardinal(heading);
+    const readout = heading === null
+      ? "---"
+      : `${Math.round(heading)}°${this._config.show_cardinal === false ? "" : ` ${cardinal}`}`;
 
     return html`
       <ha-card style="${styleVars}">
@@ -152,7 +152,7 @@ export class LinearCompassCard extends LitElement {
             <div class="compass-glass"></div>
           </div>
           ${this._config.show_degrees !== false
-            ? html`<div class="compass-readout">${degStr}° ${cardinal}</div>`
+            ? html`<div class="compass-readout">${readout}</div>`
             : nothing}
         </div>
       </ha-card>
@@ -184,6 +184,11 @@ export class LinearCompassCard extends LitElement {
 
   // ---- canvas drawing ----
 
+  private _readHeading(): number | null {
+    const entity = this.hass?.states[this._config?.entity];
+    return resolveHeadingFromEntity(entity, this._config?.attribute);
+  }
+
   private _draw(): void {
     const canvas = this.renderRoot.querySelector(
       "canvas.compass-canvas"
@@ -210,6 +215,7 @@ export class LinearCompassCard extends LitElement {
 
     const heading = this._animatedHeading;
     const condensed = this._config?.condensed ?? false;
+    const centreY = h / 2;
 
     // The centre of the canvas corresponds to the current heading.
     // Each degree is PIXELS_PER_DEGREE pixels wide.
@@ -254,9 +260,10 @@ export class LinearCompassCard extends LitElement {
       ctx.beginPath();
       ctx.strokeStyle = tickColor;
       ctx.lineWidth = isMajor ? 2 : 1;
-      const topOffset = condensed ? 8 : 12;
-      ctx.moveTo(x, topOffset);
-      ctx.lineTo(x, topOffset + tickH);
+      const tickTop = centreY - tickH / 2;
+      const tickBottom = centreY + tickH / 2;
+      ctx.moveTo(x, tickTop);
+      ctx.lineTo(x, tickBottom);
       ctx.stroke();
 
       // Degree numbers at every 20°
@@ -267,31 +274,33 @@ export class LinearCompassCard extends LitElement {
           : "bold 13px 'Segoe UI', Roboto, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        const numY = topOffset - (condensed ? 9 : 12);
+        const numY = centreY - (condensed ? 18 : 24);
         ctx.fillText(String(normD), x, numY < 0 ? 1 : numY);
       }
     }
 
-    // --- Cardinal directions ---
-    const cardinalY = condensed ? 28 : 44;
-    for (const c of CARDINALS) {
-      // We need to find the x of this cardinal relative to current heading.
-      // There may be multiple representations (c.deg, c.deg-360, c.deg+360).
-      for (const offset of [-360, 0, 360]) {
-        const d = c.deg + offset;
-        const offsetDeg = d - heading;
-        if (Math.abs(offsetDeg) > 100) continue;
-        const x = centreX + offsetDeg * ppd;
-        if (x < -40 || x > w + 40) continue;
+    if (this._config?.show_cardinal !== false) {
+      // --- Cardinal directions ---
+      const cardinalY = centreY + (condensed ? 8 : 12);
+      for (const c of CARDINALS) {
+        // We need to find the x of this cardinal relative to current heading.
+        // There may be multiple representations (c.deg, c.deg-360, c.deg+360).
+        for (const offset of [-360, 0, 360]) {
+          const d = c.deg + offset;
+          const offsetDeg = d - heading;
+          if (Math.abs(offsetDeg) > 100) continue;
+          const x = centreX + offsetDeg * ppd;
+          if (x < -40 || x > w + 40) continue;
 
-        ctx.fillStyle = cardinalColor;
-        const isMain = c.label.length === 1; // N, E, S, W
-        ctx.font = isMain
-          ? (condensed ? "bold 14px 'Segoe UI', Roboto, sans-serif" : "bold 18px 'Segoe UI', Roboto, sans-serif")
-          : (condensed ? "bold 11px 'Segoe UI', Roboto, sans-serif" : "bold 14px 'Segoe UI', Roboto, sans-serif");
-        ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-        ctx.fillText(c.label, x, cardinalY);
+          ctx.fillStyle = cardinalColor;
+          const isMain = c.label.length === 1; // N, E, S, W
+          ctx.font = isMain
+            ? (condensed ? "bold 14px 'Segoe UI', Roboto, sans-serif" : "bold 18px 'Segoe UI', Roboto, sans-serif")
+            : (condensed ? "bold 11px 'Segoe UI', Roboto, sans-serif" : "bold 14px 'Segoe UI', Roboto, sans-serif");
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          ctx.fillText(c.label, x, cardinalY);
+        }
       }
     }
   }

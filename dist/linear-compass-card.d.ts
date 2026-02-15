@@ -37,9 +37,10 @@ export declare class LinearCompassCard extends LitElement {
     connectedCallback(): void;
     disconnectedCallback(): void;
     protected firstUpdated(_changed: PropertyValues): void;
-    protected updated(changed: PropertyValues): void;
+    protected updated(_changed: PropertyValues): void;
     protected render(): typeof nothing | import("lit-html").TemplateResult<1>;
     private _startAnimation;
+    private _readHeading;
     private _draw;
 }
 declare global {

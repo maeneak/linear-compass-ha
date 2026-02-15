@@ -11,6 +11,7 @@ const SCHEMA = [
     name: "entity",
     selector: { entity: { domain: ["sensor", "input_number"] } },
   },
+  { name: "attribute", selector: { text: {} } },
   { name: "name", selector: { text: {} } },
   {
     type: "grid",
@@ -106,6 +107,7 @@ export class LinearCompassCardEditor extends LitElement {
   private _computeLabel = (schema: { name: string }): string => {
     const labels: Record<string, string> = {
       entity: "Entity",
+      attribute: "Attribute (optional)",
       name: "Name",
       show_name: "Show Name",
       show_degrees: "Show Degrees",

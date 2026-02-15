@@ -1,6 +1,7 @@
 export interface LinearCompassCardConfig {
   type: string;
   entity: string;
+  attribute?: string;
   name?: string;
   show_name?: boolean;
   show_degrees?: boolean;
