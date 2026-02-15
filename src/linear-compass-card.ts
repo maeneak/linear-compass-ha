@@ -29,7 +29,7 @@ interface HassEntity {
 export class LinearCompassCard extends LitElement {
   static styles = compassStyles;
 
-  @property({ attribute: false }) public hass!: HomeAssistant;
+  @property({ attribute: false, hasChanged: () => true }) public hass!: HomeAssistant;
   @state() private _config!: LinearCompassCardConfig;
 
   private _heading = 0;
