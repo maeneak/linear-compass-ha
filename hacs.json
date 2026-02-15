@@ -1,0 +1,7 @@
+{
+  "name": "Linear Compass Card",
+  "render_readme": true,
+  "domains": ["sensor", "input_number"],
+  "filename": "linear-compass-card.js",
+  "content_in_root": false
+}
