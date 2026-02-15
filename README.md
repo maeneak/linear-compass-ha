@@ -10,7 +10,7 @@ A horizontal linear compass gauge custom card for Home Assistant. Displays headi
 - **Canvas-rendered** for crisp display at any DPI
 - Accepts numeric headings (`0-360`) or cardinal text (`N`, `NNE`, `SW`, etc.)
 - Cardinal directions (N, NE, E, SE, S, SW, W, NW)
-- Degree markings every 20°, tick marks every 5°/10°
+- Degree markings every 15°, tick marks every 5°/15°
 - **Condensed mode** — fits a single grid row in HA dashboard
 - Edge fade-out with glass reflection effect
 - Fully customisable colours (needle, ticks, text, background, cardinals)

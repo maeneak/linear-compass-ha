@@ -239,7 +239,7 @@ export class LinearCompassCard extends LitElement {
 
       if (x < -20 || x > w + 20) continue;
 
-      const isMajor = normD % 10 === 0;
+      const isMajor = normD % 15 === 0;
       const isMid = normD % 5 === 0;
 
       if (condensed) {
@@ -266,8 +266,8 @@ export class LinearCompassCard extends LitElement {
       ctx.lineTo(x, tickBottom);
       ctx.stroke();
 
-      // Degree numbers at every 20°
-      if (normD % 20 === 0) {
+      // Degree numbers at every 15°
+      if (normD % 15 === 0) {
         ctx.fillStyle = degColor;
         ctx.font = condensed
           ? "bold 11px 'Segoe UI', Roboto, sans-serif"
